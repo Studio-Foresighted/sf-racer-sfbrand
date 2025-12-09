@@ -50,7 +50,7 @@ export class MapEditor {
     async initMaps() {
         // 1. Load Default Map
         try {
-            const response = await fetch('map_data.json');
+            const response = await fetch('./map_data.json');
             const defaultData = await response.json();
             this.maps.push({
                 id: 'default',
@@ -78,7 +78,8 @@ export class MapEditor {
         if (lastMapId && this.maps.find(m => m.id === lastMapId)) {
             this.selectMap(lastMapId);
         } else {
-            this.updateMapListUI();
+            // Force select default if no last map
+            this.selectMap('default');
         }
     }
 
@@ -112,8 +113,14 @@ export class MapEditor {
             if (this.visuals.length > 0) this.refreshVisuals();
 
             // If game is running (Editor Closed), update Game World with new assets
-            if (!this.active) {
-                this.applyChanges();
+            // Wait for map data to be loaded first
+            if (!this.active && this.maps.length > 0) {
+                // Ensure we have data to apply
+                const currentMap = this.maps.find(m => m.id === this.activeMapId);
+                if (currentMap && currentMap.data) {
+                    this.loadMapData(currentMap.data);
+                    this.applyChanges();
+                }
             }
         }, undefined, (error) => {
             console.error("Error loading Coin Model:", error);
@@ -124,8 +131,12 @@ export class MapEditor {
             this.coinModel.name = "CoinFallback";
             
             // Update Game World with fallback
-            if (!this.active) {
-                this.applyChanges();
+            if (!this.active && this.maps.length > 0) {
+                 const currentMap = this.maps.find(m => m.id === this.activeMapId);
+                if (currentMap && currentMap.data) {
+                    this.loadMapData(currentMap.data);
+                    this.applyChanges();
+                }
             }
         });
     }
