@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="data:,">
+    <title>Arworx Kart</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+        body.font-italic { font-style: italic; }
+        
+        /* --- HUD LAYOUT --- */
+        #hud-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* Let touches pass through to controls */
+            display: none; /* Hidden until game starts */
+        }
+
+        /* Top Left: Rank, Time, Lap, Map */
+        #hud-top-left {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .rank-text {
+            font-size: 32px; /* half size */
+            font-weight: 900;
+            line-height: 1;
+            color: #ffd700; /* Gold */
+            text-shadow: 2px 2px 0px #000; /* Drop shadow like speed */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .coin-icon { font-size: 24px; }
+        .rank-suffix { font-size: 24px; vertical-align: top; }
+        .hud-row { display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: 700; text-shadow: 1px 1px 0 #000; }
+        .hud-label { color: #ccc; font-size: 14px; }
+        
+        /* minimap removed */
+
+        /* Top Right: Speed, Boost, Fuel */
+        #hud-top-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+        .speed-text {
+            font-size: 64px;
+            font-weight: 900;
+            font-style: italic;
+            line-height: 1;
+            text-shadow: 2px 2px 0px #000;
+        }
+        .speed-unit { font-size: 24px; font-weight: 700; color: #666; }
+        
+        .bar-container {
+            width: 45vw; /* Responsive, just under 50% */
+            max-width: 300px; /* Cap max width */
+            height: 12px;
+            background: rgba(0,0,0,0.5);
+            transform: skewX(-20deg);
+            border: 1px solid rgba(255,255,255,0.2);
+            margin-top: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        #speed-bar .bar-fill { background: linear-gradient(90deg, #00ccff, #ff00cc); }
+        #fuel-bar .bar-fill { background: linear-gradient(90deg, #ffcc00, #ff3300); }
+        
+        .boost-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: 1px 1px 0 #000;
+        }
+        .boost-icon { font-size: 20px; }
+
+        /* Controls Layer */
+        #controls-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: auto; /* Catch touches */
+            touch-action: none;
+            display: none; /* Hidden until game starts */
+        }
+
+        /* Steering Buttons (Left/Right) */
+        .steer-btn {
+            position: absolute;
+            bottom: 30px;
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #00ccff; /* Cyan border */
+            border-radius: 15px;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .steer-btn:active, .steer-btn.active { background: rgba(0, 204, 255, 0.3); }
+        
+        #btn-left { left: 20px; }
+        #btn-right { left: 110px; } /* 20px + 80px + 10px gap */
+
+        /* Action Buttons */
+        .action-btn {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .action-btn:active, .action-btn.active { background: rgba(255, 255, 255, 0.2); border-color: white; }
+
+        /* Stack buttons vertically on the bottom-right */
+        /* Gas: 100px size, right 35px -> 25px. Bottom 40px -> 30px. */
+        #btn-accelerate { bottom: 30px; right: 25px; width: 100px; height: 100px; background: rgba(0, 200, 0, 0.3); }
+        /* Brk: 50px size. Center aligned with Gas (right 60px -> 50px). Bottom 160px -> 150px. */
+        #btn-brake { bottom: 150px; right: 25px; width: 100px; height: 50px; background: rgba(200, 0, 0, 0.3); }
+        /* N20: 50px size. Center aligned. Bottom 230px -> 220px. */
+        #btn-nitro { bottom: 220px; right: 50px; width: 50px; height: 50px; background: rgba(0, 100, 255, 0.3); }
+
+        /* Nitro Bars: Located under N20 button (between Brk and N20) */
+        #nitro-bars {
+            position: absolute;
+            bottom: 205px; /* Just below N20 (220) */
+            right: 50px;
+            width: 50px; /* Match button width */
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+        .nitro-bar {
+            width: 30%;
+            height: 8px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.3);
+            transform: skewX(-20deg);
+        }
+        .nitro-bar.active {
+            background: #00ccff;
+            box-shadow: 0 0 8px #00ccff;
+            border-color: #fff;
+        }
+
+        /* Hide fuel / N20 meter and N20 controls for now */
+        #fuel-bar { display: none !important; }
+        #btn-nitro { display: none !important; }
+        #nitro-bars { display: none !important; }
+
+        /* Mobile Menu Button (Quarter Circle) */
+        #mobile-menu-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 52px; /* Half size (was 80) */
+            height: 52px; /* Half size (was 80) */
+            background: rgba(0, 123, 255, 0.5); /* Blue */
+            border-bottom-left-radius: 100%;
+            cursor: pointer;
+            z-index: 2000;
+            display: none; /* Hidden on desktop by default, shown via JS if touch */
+            pointer-events: auto;
+            transition: all 0.2s ease;
+        }
+        #mobile-menu-btn.menu-open {
+            width: 78px; /* +50% */
+            height: 78px; /* +50% */
+            background: rgba(220, 53, 69, 0.8); /* Red for close */
+        }
+        #mobile-menu-btn span {
+            position: absolute;
+            top: 14px; /* Adjusted for smaller size */
+            right: 5px; /* Adjusted for smaller size */
+            color: white;
+            font-size: 13px; /* Larger as requested */
+            font-weight: bold;
+            transform: rotate(45deg);
+            transition: all 0.2s ease;
+        }
+        #mobile-menu-btn.menu-open span {
+            top: 22px;
+            right: 18px;
+            font-size: 24px;
+            transform: rotate(0deg);
+        }
+
+        #garage-ui {
+            position: absolute;
+            top: 112px; /* nudged up 2px to sit just below timer */
+            left: 20px;
+            background: rgba(20, 20, 20, 0.95);
+            padding: 15px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: white;
+            display: none; /* Hidden until loaded */
+            min-width: 240px;
+            z-index: 2500; /* Below loading overlay (3000) */
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+        #garage-ui.collapsed {
+            background: rgba(20, 20, 20, 0.4);
+            padding: 4px 10px;
+            border-color: rgba(255,255,255,0.1);
+            box-shadow: none;
+            min-width: 150px; /* Smaller width */
+        }
+        #garage-ui.collapsed h3 {
+            margin: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        /* Ensure coin icon and jump crowns are not italicized by global UI font setting */
+        .coin-icon { font-style: normal; }
+        .jump-entry span:first-child { font-style: normal; }
+        .car-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 5px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            cursor: pointer;
+            text-align: left;
+        }
+        .car-btn:hover { background: #444; }
+        .car-btn.active { background: #007bff; border-color: #0056b3; }
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .loading-content {
+            text-align: center;
+            width: 300px;
+        }
+        .loading-content h1 {
+            margin-bottom: 20px;
+            font-style: italic;
+            letter-spacing: 2px;
+            color: #ff3333;
+        }
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #ff3333;
+            transition: width 0.1s ease;
+        }
+        #loading-text {
+            font-size: 12px;
+            color: #888;
+        }
+        /* Gift Button */
+        #gift-btn {
+            position: absolute;
+            bottom: 220px; /* Above Brk (150 + 50 + 20) */
+            right: 48px; /* Adjusted for new button pos */
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px solid #ffd700;
+            border-radius: 15px;
+            color: #ffd700;
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 100;
+            font-style: normal; /* Not affected by game settings */
+            transform: translateY(-4px); /* Slightly larger & lifted */
+        }
+        #gift-notification {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff3333;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        /* Milestone Modal */
+        #milestone-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 6000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .milestone-content {
+            width: 80%;
+            max-width: 500px;
+            background: #111;
+            border: 2px solid #444;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 80%;
+            overflow-y: hidden; /* Scroll handled by list */
+            display: flex;
+            flex-direction: column;
+        }
+        #milestone-list {
+            overflow-y: auto;
+            max-height: 450px; /* Approx 6 items */
+            padding-right: 5px;
+        }
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+        .milestone-title { font-size: 24px; color: #ffd700; font-weight: 900; }
+        .milestone-close {
+            background: #333;
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="font-italic">
+    <div id="loading-overlay">
+        <div class="loading-content">
+            <h1>Arworx Kart</h1>
+            <div class="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+            <div id="loading-text">Loading Assets...</div>
+        </div>
+    </div>
+
+    <div id="milestone-modal">
+        <div class="milestone-content">
+            <div class="milestone-header">
+                <div class="milestone-title">MILESTONES</div>
+                <button class="milestone-close" id="milestone-close">X</button>
+            </div>
+            <div id="milestone-list"></div>
+        </div>
+    </div>
+
+    <!-- HUD Layer -->
+    <div id="hud-layer">
+        <div id="hud-top-left">
+            <div class="rank-text"><span class="coin-icon">🪙</span> <span id="coin-count">0</span></div>
+            <div class="hud-row">
+                <span id="lap-display">LAP 1/3</span>
+            </div>
+            <div class="hud-row">
+                    <span id="time-display">00' 00" 00</span>
+                </div>
+        </div>
+
+        <div id="hud-top-right">
+            <div>
+                <span class="speed-text" id="speed-display">0</span>
+                <span class="speed-unit">KM/H</span>
+            </div>
+            <div class="bar-container" id="speed-bar">
+                <div class="bar-fill" style="width: 0%"></div>
+            </div>
+            
+            <div class="bar-container" id="fuel-bar">
+                <div class="bar-fill" style="width: 100%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="garage-ui" style="margin-top:5px;">
+        <h3 id="garage-header" style="margin:0; font-size:16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            Select Car <span id="garage-toggle-icon">▼</span>
+        </h3>
+        <div id="car-list" style="max-height: 200px; overflow-y: auto; transition: max-height 0.3s ease;"></div>
+    </div>
+        
+        <!-- Controls Layer -->
+    <div id="controls-layer">
+        <div id="mobile-menu-btn"><span>Menu</span></div>
+        
+        <div id="btn-left" class="steer-btn">◀</div>
+        <div id="btn-right" class="steer-btn">▶</div>
+        
+        <div id="btn-accelerate" class="action-btn">Gas</div>
+        <div id="btn-brake" class="action-btn">Rev</div>
+        <div id="btn-nitro" class="action-btn">N20</div>
+        
+        <div id="gift-btn">
+            🎁
+            <div id="gift-notification">1</div>
+        </div>
+
+        <div id="nitro-bars">
+            <div class="nitro-bar"></div>
+            <div class="nitro-bar"></div>
+            <div class="nitro-bar"></div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@dimforge/rapier3d-compat": "https://unpkg.com/@dimforge/rapier3d-compat@0.14.0/rapier.es.js"
+            }
+        }
+    </script>
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>
