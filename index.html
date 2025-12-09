@@ -127,6 +127,7 @@
             font-size: 40px;
             cursor: pointer;
             user-select: none;
+            font-style: normal!important; /* Not affected by game settings */
         }
         .steer-btn:active, .steer-btn.active { background: rgba(0, 204, 255, 0.3); }
         
@@ -393,6 +394,25 @@
             border-radius: 50%;
             cursor: pointer;
             font-weight: bold;
+        }
+
+        /* Desktop Adjustments */
+        @media (min-width: 1024px) and (hover: hover) {
+            /* Hide mobile controls */
+            #btn-left, #btn-right, #btn-accelerate, #btn-brake {
+                display: none !important;
+            }
+
+            /* Scale Top-Left HUD */
+            #hud-top-left {
+                transform: scale(2);
+                transform-origin: top left;
+            }
+
+            /* Move Garage UI down to avoid overlap with scaled HUD */
+            #garage-ui {
+                top: 220px !important;
+            }
         }
     </style>
 </head>

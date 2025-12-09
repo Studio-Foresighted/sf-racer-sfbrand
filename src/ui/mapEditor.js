@@ -33,6 +33,9 @@ export class MapEditor {
         this.rampPreview = null; // Visual cursor for ramps
         this.defaultY = -1.5; // Hardcoded default as requested
         this.overrideY = true; // Always override Y
+        
+        // Start Line Settings
+        this.startLineSize = { width: 40, height: 15 };
 
         this.initCamera();
         this.setupInput();
@@ -241,6 +244,40 @@ export class MapEditor {
         // Mode Toggle
         this.modeBtn = this.createButton('Mode: CHECKPOINT', () => this.toggleMode());
         controls.appendChild(this.modeBtn);
+
+        // Start Line Settings
+        const startLineContainer = document.createElement('div');
+        startLineContainer.style.cssText = 'margin-top: 10px; border-top: 1px solid #555; padding-top: 5px;';
+        startLineContainer.innerHTML = '<div style="font-size:0.8em; margin-bottom:5px;">Start Line Size</div>';
+        
+        const createInput = (label, key) => {
+            const wrap = document.createElement('span');
+            wrap.style.margin = '0 5px';
+            wrap.innerHTML = `${label}: `;
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = this.startLineSize[key];
+            input.style.width = '50px';
+            input.style.background = '#333';
+            input.style.color = '#fff';
+            input.style.border = '1px solid #555';
+            input.onchange = (e) => {
+                this.startLineSize[key] = parseFloat(e.target.value);
+                this.refreshVisuals(); // Update visual immediately
+                this.applyChanges(); // Update game logic
+            };
+            wrap.appendChild(input);
+            return { wrap, input };
+        };
+
+        const wInput = createInput('W', 'width');
+        const hInput = createInput('H', 'height');
+        this.startLineWidthInput = wInput.input; // Store ref to update later
+        this.startLineHeightInput = hInput.input;
+
+        startLineContainer.appendChild(wInput.wrap);
+        startLineContainer.appendChild(hInput.wrap);
+        this.uiOverlay.appendChild(startLineContainer);
 
         // Create New Map Button (Prominent)
         this.createMapBtn = this.createButton('NEW MAP', () => this.addNewMap());
@@ -520,8 +557,26 @@ export class MapEditor {
 
     addCheckpointVisual(pos, index) {
         const isStart = (index === 0);
-        if (isStart || !this.coinModel) {
-            const color = isStart ? 0x00ff00 : 0xffff00;
+        if (isStart) {
+            // Start Line Visual (Box)
+            const w = this.startLineSize.width;
+            const h = this.startLineSize.height;
+            const d = 5;
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshBasicMaterial({ 
+                color: 0x00ff00, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.5
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            // Position center based on height (from ground up)
+            mesh.position.set(pos.x, pos.y + (h / 2), pos.z);
+            mesh.visible = this.active; // Only visible if editor is active
+            this.game.scene.threeScene.add(mesh);
+            this.visuals.push(mesh);
+        } else if (!this.coinModel) {
+            const color = 0xffff00;
             const geo = new THREE.SphereGeometry(2, 16, 16);
             const mat = new THREE.MeshBasicMaterial({ color: color });
             const mesh = new THREE.Mesh(geo, mat);
@@ -594,7 +649,8 @@ export class MapEditor {
                 // Localhost: Save to Server File
                 const data = {
                     checkpoints: this.checkpoints,
-                    ramps: this.ramps
+                    ramps: this.ramps,
+                    startLineSize: this.startLineSize
                 };
                 const json = JSON.stringify(data, null, 2);
 
@@ -630,7 +686,8 @@ export class MapEditor {
                         name: name,
                         data: {
                             checkpoints: this.checkpoints,
-                            ramps: this.ramps
+                            ramps: this.ramps,
+                            startLineSize: this.startLineSize
                         },
                         isDefault: false
                     };
@@ -644,7 +701,8 @@ export class MapEditor {
             // Update Custom Map
             currentMap.data = {
                 checkpoints: this.checkpoints,
-                ramps: this.ramps
+                ramps: this.ramps,
+                startLineSize: this.startLineSize
             };
             this.saveMapsToStorage();
             this.showNotification("Map Saved!");
@@ -659,6 +717,11 @@ export class MapEditor {
         this.rampVisuals.forEach(m => this.game.scene.threeScene.remove(m));
         this.rampVisuals = [];
         if (this.lines) this.game.scene.threeScene.remove(this.lines);
+
+        // Load Start Line Size
+        this.startLineSize = data.startLineSize || { width: 40, height: 15 };
+        if (this.startLineWidthInput) this.startLineWidthInput.value = this.startLineSize.width;
+        if (this.startLineHeightInput) this.startLineHeightInput.value = this.startLineSize.height;
 
         // Load Checkpoints
         if (data.checkpoints) {
@@ -683,10 +746,21 @@ export class MapEditor {
 
     applyChanges() {
         if (this.game.lapSystem) {
-            const newCPs = this.checkpoints.map((p) => ({
-                pos: { x: p.x, y: p.y + 2, z: p.z },
-                size: { x: 10, y: 10, z: 10 }
-            }));
+            const newCPs = this.checkpoints.map((p, i) => {
+                if (i === 0) {
+                    // Start Line: Use configured size
+                    return {
+                        pos: { x: p.x, y: p.y + (this.startLineSize.height / 2), z: p.z },
+                        size: { x: this.startLineSize.width, y: this.startLineSize.height, z: 5 }
+                    };
+                } else {
+                    // Coins: Standard size
+                    return {
+                        pos: { x: p.x, y: p.y + 2, z: p.z },
+                        size: { x: 10, y: 10, z: 10 }
+                    };
+                }
+            });
             this.game.lapSystem.updateCheckpoints(newCPs, this.coinModel);
         }
 

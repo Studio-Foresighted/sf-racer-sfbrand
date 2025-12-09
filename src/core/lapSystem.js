@@ -89,7 +89,21 @@ export class LapSystem {
             });
 
             // Create Visuals
-            if (index > 0 && coinModel) { // Skip Start Line (Index 0)
+            if (index === 0) {
+                // Start Line Visual (Hidden by default, toggle with 'V')
+                const geo = new THREE.BoxGeometry(cp.size.x, cp.size.y, cp.size.z);
+                const mat = new THREE.MeshBasicMaterial({ 
+                    color: 0x00ff00, 
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(cp.pos.x, cp.pos.y, cp.pos.z);
+                mesh.visible = false; // Hidden by default
+                this.game.scene.threeScene.add(mesh);
+                this.visuals.push(mesh);
+            } else if (index > 0 && coinModel) { // Skip Start Line (Index 0)
                 const coin = coinModel.clone();
                 // Lower the coin visual slightly (approx 0.5 units) to be closer to floor but not touching
                 coin.position.set(cp.pos.x, cp.pos.y - 0.5, cp.pos.z);
@@ -106,11 +120,18 @@ export class LapSystem {
 
     // createStartLineVisual removed as requested
 
+    toggleStartLineVisibility() {
+        if (this.visuals && this.visuals[0]) {
+            this.visuals[0].visible = !this.visuals[0].visible;
+            console.log(`Start Line Visibility: ${this.visuals[0].visible}`);
+        }
+    }
+
     update() {
-        // Rotate Coins
+        // Rotate Coins (Skip index 0 which is the Start Line Wall)
         if (this.visuals) {
-            this.visuals.forEach(v => {
-                if (v) v.rotation.y += 0.05;
+            this.visuals.forEach((v, i) => {
+                if (v && i > 0) v.rotation.y += 0.05;
             });
         }
 

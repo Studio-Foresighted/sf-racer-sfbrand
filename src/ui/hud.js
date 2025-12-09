@@ -121,7 +121,7 @@ export class HUD {
         }
     }
     // Backwards-compatible coin collector called by LapSystem
-    collectCoin(amount = 15) {
+    collectCoin(amount = 1) {
         // Prefer the big coin counter in the top-left (`#coin-count`), fallback to created element
         let span = document.getElementById('coin-count');
         if (!span && this.coinCounter) span = this.coinCounter.querySelector('span');

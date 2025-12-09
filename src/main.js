@@ -229,6 +229,11 @@ class Game {
                 });
             }
         }
+        if (key === 'v') {
+            if (this.lapSystem) {
+                this.lapSystem.toggleStartLineVisibility();
+            }
+        }
     }
 
     resetCar(toStart) {

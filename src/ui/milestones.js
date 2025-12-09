@@ -17,8 +17,11 @@ export class MilestoneSystem {
 
     async loadMilestones() {
         try {
-            const res = await fetch('./assets/data/milestones.json');
+            // Add timestamp to prevent caching
+            const url = `./assets/data/milestones.json?_=${Date.now()}`;
+            const res = await fetch(url);
             this.milestones = await res.json();
+            console.log('Milestones loaded:', this.milestones);
             
             // Generate codes
             this.milestones.forEach((m, i) => {

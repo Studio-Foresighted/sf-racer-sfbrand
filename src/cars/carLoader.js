@@ -18,8 +18,11 @@ export class CarLoader {
 
     async loadManifest() {
         try {
-            const response = await fetch('./assets/cars/cars.json');
+            // Add a timestamp query param to bypass aggressive caching (useful during deploys/Netlify)
+            const url = `./assets/cars/cars.json?_=${Date.now()}`;
+            const response = await fetch(url);
             this.manifest = await response.json();
+            console.log('Car manifest loaded:', this.manifest);
             return this.manifest;
         } catch (e) {
             console.error("Failed to load car manifest", e);
