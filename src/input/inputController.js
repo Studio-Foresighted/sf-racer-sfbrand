@@ -3,7 +3,12 @@ export class InputController {
         this.keys = {
             w: false, a: false, s: false, d: false,
             arrowup: false, arrowdown: false, arrowleft: false, arrowright: false,
-            space: false, shift: false
+            space: false, shift: false,
+            f: false, c: false,
+            z: false, x: false,
+            y: false, h: false, g: false, j: false,
+            t: false, u: false,
+            1: false, 2: false, 3: false, 5: false, 6: false
         };
         this.onKeyDownCallback = onKeyDown;
 
@@ -166,6 +171,13 @@ export class InputController {
         if (this.keys.hasOwnProperty(key)) {
             this.keys[key] = isDown;
         }
+        // Handle numbers 1, 2, 3, 5, 6
+        if (key === '1') this.keys['1'] = isDown;
+        if (key === '2') this.keys['2'] = isDown;
+        if (key === '3') this.keys['3'] = isDown;
+        if (key === '5') this.keys['5'] = isDown;
+        if (key === '6') this.keys['6'] = isDown;
+
         if (key === ' ') this.keys.space = isDown;
         if (e.key === 'Shift') this.keys.shift = isDown;
 

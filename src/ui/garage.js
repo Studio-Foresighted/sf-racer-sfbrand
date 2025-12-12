@@ -15,6 +15,13 @@ export class GarageUI {
         this.animId = null;
     }
 
+    collapse() {
+        if (this.list) this.list.style.display = 'none';
+        const toggleIcon = document.getElementById('garage-toggle-icon');
+        if (toggleIcon) toggleIcon.textContent = '▶';
+        this.ui.classList.add('collapsed');
+    }
+
     async init() {
         const manifest = await this.loader.loadManifest();
         console.log("Garage Manifest:", manifest);

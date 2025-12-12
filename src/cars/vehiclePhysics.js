@@ -62,6 +62,22 @@ export class VehiclePhysics {
         // Jump Measurement
         this.jumpStartPos = new THREE.Vector3();
         this.onJumpCallback = null;
+
+        // Drift State
+        this.driftYaw = 0;
+    }
+
+    reset() {
+        this.wasGrounded = true;
+        this.landingGraceTimer = 0;
+        this.flipTimer = 0;
+        this.driftYaw = 0;
+        this.currentSteeringAngle = 0;
+        // Reset damping to defaults in case we were mid-jump
+        if (this.chassisBody) {
+            this.chassisBody.setLinearDamping(this.tuning.linearDamping);
+            this.chassisBody.setAngularDamping(this.tuning.angularDamping);
+        }
     }
 
     createChassis(pos) {
@@ -262,6 +278,57 @@ export class VehiclePhysics {
         
         const dotForward = fwd.dot(velVec);
         
+        // ==================================================
+        // DRIFT LOGIC (Arcade Style)
+        // ==================================================
+        // Auto-drift settings for Mobile/Arcade feel
+        const DRIFT_SPEED_THRESHOLD = 50; // km/h - High speed for auto-drift
+        
+        // Dynamic Max Drift Angle
+        // If Throttle Held: ~35 degrees (0.6 rad)
+        // If Throttle Released: ~60 degrees (1.0 rad)
+        const MAX_DRIFT_THROTTLE = 0.6; 
+        const MAX_DRIFT_NO_THROTTLE = 1.0;
+        
+        const currentMaxDrift = (input.throttle > 0) ? MAX_DRIFT_THROTTLE : MAX_DRIFT_NO_THROTTLE;
+
+        const DRIFT_ENTRY_SPEED = 4.0; // Snappy entry
+        const DRIFT_RECOVERY_SPEED = 3.0; // Smooth exit
+
+        // Check drift conditions
+        // 1. Braking Drift (Classic): Brake + Turn
+        const isBraking = input.brake > 0 || (input.throttle < 0 && dotForward > 0.5);
+        const isBrakeDrift = (speedKmh > 20 && isBraking && Math.abs(input.steering) > 0.1);
+
+        // 2. Speed Drift (Auto): High Speed + Hard Turn
+        const isSpeedDrift = (speedKmh > DRIFT_SPEED_THRESHOLD && Math.abs(input.steering) > 0.6);
+
+        if (isBrakeDrift || isSpeedDrift) {
+            // Enter/Maintain Drift
+            // We want to increase driftYaw in the direction of steering
+            // input.steering: +1 (Left), -1 (Right)
+            // If steering Left, we want positive Yaw (Visual rotates more Left)
+            
+            // "Rotate realRotation more aggressively"
+            // We add an offset to the physics rotation.
+            const targetDriftYaw = input.steering * currentMaxDrift;
+            
+            // Lerp towards target
+            const driftDelta = (targetDriftYaw - this.driftYaw) * DRIFT_ENTRY_SPEED * dt;
+            this.driftYaw += driftDelta;
+            
+        } else {
+            // Exit Drift (Return to 0)
+            // "Gradually lerp dirRotation back toward realRotation"
+            // Here: Lerp driftYaw back to 0
+            const recovery = (0 - this.driftYaw) * DRIFT_RECOVERY_SPEED * dt;
+            
+            this.driftYaw += recovery;
+        }
+
+        // Clamp to current max
+        this.driftYaw = Math.max(-currentMaxDrift, Math.min(currentMaxDrift, this.driftYaw));
+
         // Input mapping
         // input.throttle: >0 (W), <0 (S)
         // input.brake: Spacebar
@@ -373,6 +440,19 @@ export class VehiclePhysics {
     getRotation() {
         const r = this.chassisBody.rotation();
         return new THREE.Quaternion(r.x, r.y, r.z, r.w);
+    }
+
+    getVisualRotation() {
+        const r = this.chassisBody.rotation();
+        const q = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+        
+        // Apply drift yaw (Local Y axis)
+        // We want to rotate the car body around its UP axis by driftYaw.
+        const driftQ = new THREE.Quaternion();
+        driftQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.driftYaw);
+        
+        q.multiply(driftQ);
+        return q;
     }
     
     // Helper for UI Tuning

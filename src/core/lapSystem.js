@@ -7,12 +7,13 @@ export class LapSystem {
         this.physicsWorld = game.physics.world;
         
         this.totalLaps = 3;
-        this.currentLap = 0;
+        this.currentLap = 1;
         this.nextCheckpoint = 0; // 0 = Start/Finish, 1 = CP1, 2 = CP2
         this.hasStartedRace = false;
         this.lastValidatedCheckpoint = -1; // Track last valid hit to prevent spam
         this.collectedCoins = new Set(); // Track collected coins per race
         this.lastLapTime = 0; // Debounce for start line
+        this.raceFinished = false;
 
         
         // Checkpoint Definitions (Position, Size)
@@ -56,7 +57,8 @@ export class LapSystem {
         this.checkpoints = newCheckpoints;
         this.nextCheckpoint = 0;
         this.hasStartedRace = false;
-        this.currentLap = 0;
+        this.raceFinished = false;
+        this.currentLap = 1;
         this.collectedCoins.clear();
         
         this.setupSensors(coinModel);
@@ -91,6 +93,7 @@ export class LapSystem {
             // Create Visuals
             if (index === 0) {
                 // Start Line Visual (Hidden by default, toggle with 'V')
+                // NOTE: The visual box matches the sensor box exactly.
                 const geo = new THREE.BoxGeometry(cp.size.x, cp.size.y, cp.size.z);
                 const mat = new THREE.MeshBasicMaterial({ 
                     color: 0x00ff00, 
@@ -114,6 +117,25 @@ export class LapSystem {
             } else {
                 // Placeholder for Start Line or if no model
                 this.visuals.push(null); 
+            }
+        });
+    }
+
+    // New method to update visuals if coin model loads late
+    updateCoinVisuals(coinModel) {
+        if (!coinModel) return;
+        
+        this.checkpoints.forEach((cp, index) => {
+            // Skip Start Line (Index 0)
+            if (index > 0) {
+                // If we have a null visual, create it.
+                if (!this.visuals[index]) {
+                    const coin = coinModel.clone();
+                    coin.position.set(cp.pos.x, cp.pos.y - 0.5, cp.pos.z);
+                    coin.visible = true;
+                    this.game.scene.threeScene.add(coin);
+                    this.visuals[index] = coin;
+                }
             }
         });
     }
@@ -181,7 +203,8 @@ export class LapSystem {
                 this.completeLap();
             } else {
                 this.hasStartedRace = true;
-                console.log("Race Started!");
+                console.log("Race Started! Lap 1");
+                // Do NOT increment lap here. We are starting Lap 1.
             }
             this.lastLapTime = now;
             return;
@@ -242,19 +265,25 @@ export class LapSystem {
     }
 
     completeLap() {
-        if (this.currentLap <= this.totalLaps) {
-            console.log(`LAP ${this.currentLap} COMPLETE!`);
-            this.currentLap++;
-            
-            if (this.currentLap > this.totalLaps) {
-                console.log("RACE FINISHED!");
-                // Trigger Win State / UI
+        if (this.raceFinished) return;
+
+        // If we are on the final lap, finishing it ends the race
+        if (this.currentLap >= this.totalLaps) {
+            console.log("RACE FINISHED!");
+            this.raceFinished = true;
+            if (this.game.onRaceFinished) {
+                this.game.onRaceFinished();
             }
-            
-            // Update HUD
-            if (this.game.hud) {
-                this.game.hud.updateLap(Math.min(this.currentLap, this.totalLaps), this.totalLaps);
-            }
+            return;
+        }
+
+        // Otherwise, increment to next lap
+        this.currentLap++;
+        console.log(`LAP ${this.currentLap} COMPLETE!`);
+        
+        // Update HUD
+        if (this.game.hud) {
+            this.game.hud.updateLap(this.currentLap, this.totalLaps);
         }
     }
 }

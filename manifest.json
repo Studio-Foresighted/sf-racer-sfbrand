@@ -1,6 +1,6 @@
 {
-    "name": "Arworx Kart",
-    "short_name": "ArworxKart",
+    "name": "Artworx Kart",
+    "short_name": "ArtworxKart",
     "start_url": "./index.html",
     "display": "fullscreen",
     "background_color": "#000000",

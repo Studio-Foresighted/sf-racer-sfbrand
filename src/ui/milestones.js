@@ -3,6 +3,7 @@ export class MilestoneSystem {
         this.game = game;
         this.milestones = [];
         this.currentCoins = 0;
+        this.lastSeenCount = 0; // Track viewed milestones
         
         // UI Elements
         this.btn = document.getElementById('gift-btn');
@@ -39,7 +40,17 @@ export class MilestoneSystem {
 
     setupEvents() {
         if (this.btn) {
-            this.btn.onclick = () => this.openModal();
+            // Ensure pointer events are enabled for the button
+            this.btn.style.pointerEvents = 'auto';
+            this.btn.onclick = (e) => {
+                e.stopPropagation(); // Prevent bubbling issues
+                this.openModal();
+            };
+            // Also add touchstart for better mobile response
+            this.btn.ontouchstart = (e) => {
+                e.stopPropagation();
+                this.openModal();
+            };
         }
         if (this.closeBtn) {
             this.closeBtn.onclick = () => this.closeModal();
@@ -59,27 +70,36 @@ export class MilestoneSystem {
         
         // Update Notification
         if (unlockedCount > 0) {
-            this.btn.style.display = 'flex';
+            this.btn.className = 'state-1'; // Active Image
             this.notification.textContent = unlockedCount;
             this.notification.style.display = 'flex';
+            
+            // Shake if new milestone (count increased since last view)
+            if (unlockedCount > this.lastSeenCount) {
+                this.btn.classList.add('shake');
+                this.notification.classList.remove('badge-grey'); // Red again
+            }
         } else {
-            // Keep button visible but maybe no notification? 
-            // User said "show a 'gift box' icon button... with a small notification number"
-            // "Whenever the player reachs a certain amount of points, you can show a 'gift box' icon button"
-            // Implies it might be hidden otherwise? Or maybe always visible?
-            // Let's keep it visible if at least one is unlocked, or maybe always visible to show progress?
-            // "Whenever the player reachs... you can show" -> implies hidden before?
-            // Let's hide if 0 unlocked for now, or show always?
-            // "show a 'gift box' icon button... with a small notification number showing the prizes available"
-            // I'll show it always but only show notification for unlocked ones.
-            this.btn.style.display = 'flex';
-            this.notification.style.display = unlockedCount > 0 ? 'flex' : 'none';
+            this.btn.className = 'state-0'; // Default Image
+            this.notification.style.display = 'none';
+            this.btn.classList.remove('shake');
         }
+        // Always visible now
+        this.btn.style.display = 'block';
     }
 
     openModal() {
         this.game.paused = true;
         this.modal.style.display = 'flex';
+        
+        // Stop shake and grey out badge
+        this.btn.classList.remove('shake');
+        this.notification.classList.add('badge-grey');
+        
+        // Update last seen count to current unlocked count
+        const unlockedCount = this.milestones.filter(m => this.currentCoins >= m.points).length;
+        this.lastSeenCount = unlockedCount;
+
         this.renderList();
     }
 

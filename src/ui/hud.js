@@ -77,6 +77,59 @@ export class HUD {
         playStep();
     }
 
+    showFinish(onRestart) {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'absolute';
+        overlay.style.top = '50%';
+        overlay.style.left = '50%';
+        overlay.style.transform = 'translate(-50%, -50%)';
+        overlay.style.textAlign = 'center';
+        overlay.style.zIndex = '2000';
+        overlay.style.fontFamily = "'Orbitron', sans-serif";
+        
+        const title = document.createElement('div');
+        title.innerText = 'FINISHED';
+        title.style.fontSize = '80px';
+        title.style.fontWeight = '900';
+        title.style.color = '#fff';
+        title.style.textShadow = '0 0 20px #ff00cc, 0 0 40px #00ccff';
+        title.style.marginBottom = '20px';
+        title.style.opacity = '0';
+        title.style.transform = 'scale(0.5)';
+        title.style.transition = 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        
+        const btn = document.createElement('button');
+        btn.innerText = 'RACE AGAIN';
+        btn.style.padding = '15px 40px';
+        btn.style.fontSize = '24px';
+        btn.style.fontWeight = 'bold';
+        btn.style.background = 'linear-gradient(45deg, #ff00cc, #00ccff)';
+        btn.style.border = 'none';
+        btn.style.color = 'white';
+        btn.style.cursor = 'pointer';
+        btn.style.boxShadow = '0 0 15px rgba(0,0,0,0.5)';
+        btn.style.opacity = '0';
+        btn.style.transform = 'translateY(20px)';
+        btn.style.transition = 'all 0.5s ease 0.3s'; // Delay button
+        
+        btn.onclick = () => {
+            document.body.removeChild(overlay);
+            if (onRestart) onRestart();
+        };
+        
+        overlay.appendChild(title);
+        overlay.appendChild(btn);
+        document.body.appendChild(overlay);
+        
+        // Trigger Animation
+        requestAnimationFrame(() => {
+            title.style.opacity = '1';
+            title.style.transform = 'scale(1)';
+            btn.style.opacity = '1';
+            btn.style.transform = 'translateY(0)';
+        });
+    }
+
     hide() {
         this.layer.style.display = 'none';
         this.controlsLayer.style.display = 'none';
@@ -151,7 +204,21 @@ export class HUD {
             }
         }
 
-        // Animate the visible coin element (either rankText or coinCounter)
+        this.animateCoin(span, amount);
+    }
+
+    resetCoins() {
+        let span = document.getElementById('coin-count');
+        if (span) {
+            span.innerText = '0';
+        }
+        if (this.game) {
+            this.game.coins = 0;
+        }
+    }
+
+    // Animate the visible coin element (either rankText or coinCounter)
+    animateCoin(span, amount) {
         const animEl = span ? span.parentElement : this.coinCounter;
         if (animEl) {
             animEl.style.transition = 'transform 150ms ease';

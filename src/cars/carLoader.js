@@ -17,6 +17,10 @@ export class CarLoader {
     }
 
     async loadManifest() {
+        if (this.manifest && this.manifest.length > 0) {
+            return this.manifest;
+        }
+
         try {
             // Add a timestamp query param to bypass aggressive caching (useful during deploys/Netlify)
             const url = `./assets/cars/cars.json?_=${Date.now()}`;
@@ -28,6 +32,21 @@ export class CarLoader {
             console.error("Failed to load car manifest", e);
             return [];
         }
+    }
+
+    async preloadAllCars(onProgress) {
+        if (!this.manifest || this.manifest.length === 0) return;
+
+        const total = this.manifest.length;
+        let loaded = 0;
+
+        for (const entry of this.manifest) {
+            if (onProgress) onProgress(entry.displayName, loaded / total);
+            await this.loadCarModel(entry.id);
+            loaded++;
+        }
+        
+        if (onProgress) onProgress("Complete", 1.0);
     }
 
     async loadCarModel(id, onProgress) {

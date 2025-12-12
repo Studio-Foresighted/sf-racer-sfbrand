@@ -115,15 +115,9 @@ export class MapEditor {
             // Refresh Editor Visuals
             if (this.visuals.length > 0) this.refreshVisuals();
 
-            // If game is running (Editor Closed), update Game World with new assets
-            // Wait for map data to be loaded first
-            if (!this.active && this.maps.length > 0) {
-                // Ensure we have data to apply
-                const currentMap = this.maps.find(m => m.id === this.activeMapId);
-                if (currentMap && currentMap.data) {
-                    this.loadMapData(currentMap.data);
-                    this.applyChanges();
-                }
+            // Update Game Visuals if they were created before the model loaded
+            if (this.game && this.game.lapSystem) {
+                this.game.lapSystem.updateCoinVisuals(this.coinModel);
             }
         }, undefined, (error) => {
             console.error("Error loading Coin Model:", error);
@@ -134,13 +128,7 @@ export class MapEditor {
             this.coinModel.name = "CoinFallback";
             
             // Update Game World with fallback
-            if (!this.active && this.maps.length > 0) {
-                 const currentMap = this.maps.find(m => m.id === this.activeMapId);
-                if (currentMap && currentMap.data) {
-                    this.loadMapData(currentMap.data);
-                    this.applyChanges();
-                }
-            }
+            // Removed to prevent double loading
         });
     }
 
@@ -749,6 +737,8 @@ export class MapEditor {
             const newCPs = this.checkpoints.map((p, i) => {
                 if (i === 0) {
                     // Start Line: Use configured size
+                    // Ensure the Y position is centered so the box extends upwards from the ground
+                    // If p.y is ground level (-1.5), and height is 15, center should be at -1.5 + 7.5 = 6.0
                     return {
                         pos: { x: p.x, y: p.y + (this.startLineSize.height / 2), z: p.z },
                         size: { x: this.startLineSize.width, y: this.startLineSize.height, z: 5 }

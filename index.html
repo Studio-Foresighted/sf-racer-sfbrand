@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" href="data:,">
-    <title>Arworx Kart</title>
+    <title>Artworx Kart</title>
     <link rel="manifest" href="./manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,7 +13,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+        /* Disable Zoom & Context Menu */
+        * {
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none; /* Safari */
+            -khtml-user-select: none; /* Konqueror HTML */
+            -moz-user-select: none; /* Old Firefox */
+            -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+            touch-action: none; /* Disable browser handling of gestures */
+        }
+        
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; }
         body.font-italic { font-style: italic; }
         
         /* --- HUD LAYOUT --- */
@@ -44,7 +55,42 @@
             align-items: center;
             gap: 8px;
         }
-        .coin-icon { font-size: 24px; }
+        /* Gift Button (Replaces Coin Icon) */
+        #gift-btn {
+            position: relative; /* Relative to flex container */
+            width: 40px; /* Match previous coin icon size approx */
+            height: 40px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            cursor: pointer;
+            pointer-events: auto; /* Ensure clickable */
+            display: block; /* Always visible */
+            font-style: normal;
+            z-index: 100;
+        }
+        /* Default State (No Milestones) */
+        #gift-btn.state-0 { background-image: url('./assets/ui/giftbox-0.png'); }
+        /* Active State (Milestones Hit) */
+        #gift-btn.state-1 { background-image: url('./assets/ui/giftbox-1.png'); }
+
+        #gift-notification {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff3333;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            border: 1px solid white;
+        }
+
         .rank-suffix { font-size: 24px; vertical-align: top; }
         .hud-row { display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: 700; text-shadow: 1px 1px 0 #000; }
         .hud-label { color: #ccc; font-size: 14px; }
@@ -62,6 +108,14 @@
             flex-direction: column;
             align-items: flex-end;
             gap: 5px;
+            max-width: 45vw; /* Constraint for mobile */
+        }
+        /* Container for Speed Text + Unit to prevent wrapping */
+        .speed-container {
+            white-space: nowrap;
+            display: flex;
+            align-items: baseline;
+            justify-content: flex-end;
         }
         .speed-text {
             font-size: 64px;
@@ -82,6 +136,49 @@
             margin-top: 5px;
             position: relative;
             overflow: hidden;
+        }
+
+        /* Landscape Mobile Adjustments */
+        @media (orientation: landscape) {
+            .bar-container {
+                width: 30vw; /* Smaller on landscape mobile */
+                max-width: 200px;
+            }
+            .speed-text { font-size: 48px; }
+            
+            /* Tighter Steering Buttons */
+            .steer-btn {
+                width: 7vw !important; height: 7vw !important;
+                bottom: 10px;
+            }
+            #btn-left { left: 20px !important; }
+            #btn-right { left: calc(20px + 7vw + 20px) !important; } /* 20px gap */
+
+            /* Tighter Action Buttons */
+            .action-btn {
+                width: 8vw !important; height: 8vw !important;
+                bottom: 10px;
+            }
+            #btn-accelerate { right: 20px !important; }
+            #btn-brake { right: calc(20px + 8vw + 20px) !important; } /* 20px gap */
+        }
+
+        /* Shake Animation */
+        @keyframes shake {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            50% { transform: rotate(10deg); }
+            75% { transform: rotate(-10deg); }
+            100% { transform: rotate(0deg); }
+        }
+        .shake {
+            animation: shake 0.5s ease-in-out infinite;
+        }
+        
+        /* Grey Badge for Viewed */
+        #gift-notification.badge-grey {
+            background: #666;
+            border-color: #999;
         }
         .bar-fill {
             height: 100%;
@@ -106,59 +203,146 @@
         #controls-layer {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: auto; /* Catch touches */
+            pointer-events: none; /* Let clicks pass through to HUD/Game */
             touch-action: none;
             display: none; /* Hidden until game starts */
         }
 
         /* Steering Buttons (Left/Right) */
         .steer-btn {
+            pointer-events: auto; /* Re-enable clicks for buttons */
             position: absolute;
-            bottom: 30px;
-            width: 80px;
-            height: 80px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 2px solid #00ccff; /* Cyan border */
-            border-radius: 15px;
-            color: white;
+            bottom: 2vh;
+            width: 18vw;
+            height: 18vw;
+            max-width: 100px;
+            max-height: 100px;
+            min-width: 60px;
+            min-height: 60px;
+            
+            /* Circle with black opacity */
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 50%;
+            
+            /* Arrow Image */
+            background-image: url('./assets/ui/inner-arrow.png');
+            background-size: 50%; /* Padding effect */
+            background-repeat: no-repeat;
+            background-position: center;
+            
+            border: none;
+            
+            color: transparent;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 40px;
+            font-size: 0;
             cursor: pointer;
             user-select: none;
-            font-style: normal!important; /* Not affected by game settings */
+            font-style: normal!important;
+            -webkit-tap-highlight-color: transparent;
+            z-index: 100;
         }
-        .steer-btn:active, .steer-btn.active { background: rgba(0, 204, 255, 0.3); }
+        .steer-btn:active, .steer-btn.active { 
+            transform: scale(0.90); /* Press effect only, rotation handled in ID */
+        }
         
-        #btn-left { left: 20px; }
-        #btn-right { left: 110px; } /* 20px + 80px + 10px gap */
+        /* 
+           Image is DOWN by default.
+           Rotate 90deg -> Left
+           Rotate -90deg -> Right
+        */
+        #btn-left { 
+            left: 4vw; 
+            transform: rotate(90deg);
+        }
+        #btn-left:active, #btn-left.active {
+            transform: rotate(90deg) scale(0.9);
+        }
 
-        /* Action Buttons */
+        #btn-right { 
+            left: 26vw; 
+            transform: rotate(-90deg);
+        }
+        #btn-right:active, #btn-right.active {
+            transform: rotate(-90deg) scale(0.9);
+        }
+
+        /* Action Buttons (Gas/Brake) */
         .action-btn {
+            pointer-events: auto; /* Re-enable clicks */
             position: absolute;
-            width: 80px;
-            height: 80px;
-            background: rgba(0, 0, 0, 0.5);
+            bottom: 2vh;
+            
+            /* Responsive Size */
+            width: 20vw;
+            height: 20vw;
+            max-width: 110px;
+            max-height: 110px;
+            min-width: 70px;
+            min-height: 70px;
+
             border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
-            color: white;
+            border-radius: 15px; /* Keep rounded rect or make circle? User said "same button" */
+            
+            /* Arrow Image */
+            background-image: url('./assets/ui/inner-arrow.png');
+            background-size: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+
+            color: transparent; /* Hide text */
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
+            font-size: 0;
             cursor: pointer;
             user-select: none;
+            z-index: 100;
         }
-        .action-btn:active, .action-btn.active { background: rgba(255, 255, 255, 0.2); border-color: white; }
+        .action-btn:active, .action-btn.active { 
+            border-color: white;
+        }
 
-        /* Stack buttons vertically on the bottom-right */
-        /* Gas: 100px size, right 35px -> 25px. Bottom 40px -> 30px. */
-        #btn-accelerate { bottom: 30px; right: 25px; width: 100px; height: 100px; background: rgba(0, 200, 0, 0.3); }
-        /* Brk: 50px size. Center aligned with Gas (right 60px -> 50px). Bottom 160px -> 150px. */
-        #btn-brake { bottom: 150px; right: 25px; width: 100px; height: 50px; background: rgba(200, 0, 0, 0.3); }
-        /* N20: 50px size. Center aligned. Bottom 230px -> 220px. */
-        #btn-nitro { bottom: 220px; right: 50px; width: 50px; height: 50px; background: rgba(0, 100, 255, 0.3); }
+        /* Gas: Green, Bottom Right, Arrow UP */
+        #btn-accelerate { 
+            right: 4vw; 
+            background-color: rgba(0, 200, 0, 0.3);
+            transform: rotate(180deg); /* Down -> Up */
+        }
+        #btn-accelerate:active, #btn-accelerate.active {
+            background-color: rgba(0, 200, 0, 0.5);
+            transform: rotate(180deg) scale(0.95);
+        }
+
+        /* Brake: Red, Left of Gas, Arrow DOWN */
+        #btn-brake { 
+            right: 28vw; /* 4vw + 20vw + 4vw gap */
+            
+            /* Make slightly smaller? */
+            width: 16vw;
+            height: 16vw;
+            max-width: 90px;
+            max-height: 90px;
+            min-width: 60px;
+            min-height: 60px;
+            
+            background-color: rgba(200, 0, 0, 0.3);
+            transform: rotate(0deg); /* Down -> Down */
+        }
+        #btn-brake:active, #btn-brake.active {
+            background-color: rgba(200, 0, 0, 0.5);
+            transform: scale(0.95);
+        }
+
+        /* N20: Adjusted position */
+        #btn-nitro { 
+            bottom: 28vh; 
+            right: 4vw; 
+            width: 50px; 
+            height: 50px; 
+            background: rgba(0, 100, 255, 0.3); 
+        }
 
         /* Nitro Bars: Located under N20 button (between Brk and N20) */
         #nitro-bars {
@@ -200,7 +384,7 @@
             cursor: pointer;
             z-index: 2000;
             display: none; /* Hidden on desktop by default, shown via JS if touch */
-            pointer-events: auto;
+            pointer-events: auto; /* Re-enable clicks */
             transition: all 0.2s ease;
         }
         #mobile-menu-btn.menu-open {
@@ -305,48 +489,46 @@
         #progress-bar {
             width: 0%;
             height: 100%;
-            background: #ff3333;
-            transition: width 0.1s ease;
+            background: repeating-linear-gradient(
+                45deg,
+                #ff3333,
+                #ff3333 10px,
+                #cc0000 10px,
+                #cc0000 20px
+            );
+            background-size: 28px 28px;
+            animation: moveStripe 1s linear infinite;
+            transition: width 0.2s ease-out;
+        }
+        @keyframes moveStripe {
+            0% { background-position: 0 0; }
+            100% { background-position: 28px 0; }
         }
         #loading-text {
             font-size: 12px;
             color: #888;
+            margin-top: 5px;
         }
-        /* Gift Button */
-        #gift-btn {
-            position: absolute;
-            bottom: 220px; /* Above Brk (150 + 50 + 20) */
-            right: 48px; /* Adjusted for new button pos */
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 215, 0, 0.2);
-            border: 2px solid #ffd700;
-            border-radius: 15px;
+        #gimmick-text {
+            margin-top: 20px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
             color: #ffd700;
-            display: none; /* Hidden by default */
-            justify-content: center;
-            align-items: center;
-            font-size: 30px;
-            cursor: pointer;
-            z-index: 100;
-            font-style: normal; /* Not affected by game settings */
-            transform: translateY(-4px); /* Slightly larger & lifted */
+            font-style: italic;
+            min-height: 40px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
-        #gift-notification {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ff3333;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: bold;
+
+        /* Value styling inside gimmick lines (e.g. after colon) */
+        #gimmick-text .gimmick-value {
+            color: #ffffff;
+            font-weight: 400;
+            margin-left: 6px;
         }
+        /* Old Gift Button Removed */
 
         /* Milestone Modal */
         #milestone-modal {
@@ -414,16 +596,31 @@
                 top: 220px !important;
             }
         }
+
+        /* Loading Banner Styles */
+        .loading-banner {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 20px;
+        }
+        @media (min-width: 1024px) {
+            .loading-banner {
+                width: auto;
+                max-width: 90%; /* Wider on desktop (was 80%) */
+            }
+        }
     </style>
 </head>
 <body class="font-italic">
     <div id="loading-overlay">
         <div class="loading-content">
-            <h1>Arworx Kart</h1>
+            <img src="./assets/ui/artworx-kart-banner.png" alt="Artworx Kart" class="loading-banner">
             <div class="progress-container">
                 <div id="progress-bar"></div>
             </div>
-            <div id="loading-text">Loading Assets...</div>
+            <div id="loading-text">Initializing...</div>
+            <div id="gimmick-text"></div>
         </div>
     </div>
 
@@ -440,7 +637,12 @@
     <!-- HUD Layer -->
     <div id="hud-layer">
         <div id="hud-top-left">
-            <div class="rank-text"><span class="coin-icon">🪙</span> <span id="coin-count">0</span></div>
+            <div class="rank-text">
+                <div id="gift-btn" class="state-0">
+                    <div id="gift-notification" style="display: none;">0</div>
+                </div>
+                <span id="coin-count">0</span>
+            </div>
             <div class="hud-row">
                 <span id="lap-display">LAP 1/3</span>
             </div>
@@ -450,7 +652,7 @@
         </div>
 
         <div id="hud-top-right">
-            <div>
+            <div class="speed-container">
                 <span class="speed-text" id="speed-display">0</span>
                 <span class="speed-unit">KM/H</span>
             </div>
@@ -475,17 +677,14 @@
     <div id="controls-layer">
         <div id="mobile-menu-btn"><span>Menu</span></div>
         
-        <div id="btn-left" class="steer-btn">◀</div>
-        <div id="btn-right" class="steer-btn">▶</div>
+        <div id="btn-left" class="steer-btn"></div>
+        <div id="btn-right" class="steer-btn"></div>
         
         <div id="btn-accelerate" class="action-btn">Gas</div>
         <div id="btn-brake" class="action-btn">Rev</div>
         <div id="btn-nitro" class="action-btn">N20</div>
         
-        <div id="gift-btn">
-            🎁
-            <div id="gift-notification">1</div>
-        </div>
+        <!-- Gift Button moved to HUD -->
 
         <div id="nitro-bars">
             <div class="nitro-bar"></div>
