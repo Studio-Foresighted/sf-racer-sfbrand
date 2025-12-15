@@ -1,4 +1,4 @@
-# Race 3JS Prototype
+# Race 3JS Prototype v2.1
 
 This is a static browser prototype (Three.js + Rapier physics) meant to run from `index.html`.
 
