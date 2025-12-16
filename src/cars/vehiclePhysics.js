@@ -150,6 +150,38 @@ export class VehiclePhysics {
             this.landingGraceTimer -= dt;
         }
 
+        // Check if grounded (any wheel touching)
+        let isGrounded = false;
+        const numWheels = this.controller.numWheels();
+        for (let i = 0; i < numWheels; i++) {
+            if (this.controller.wheelIsInContact(i)) {
+                isGrounded = true;
+                break;
+            }
+        }
+
+        // Check distance to ground if not grounded
+        let closeToGround = isGrounded;
+        if (!isGrounded) {
+            const rayOrigin = this.chassisBody.translation();
+            const rayDir = { x: 0, y: -1, z: 0 };
+            const ray = new RAPIER.Ray(rayOrigin, rayDir);
+            const maxToi = 2.5; // 2.5m threshold
+            
+            // Cast ray
+            const hit = this.world.castRay(ray, maxToi, true);
+            if (hit) {
+                closeToGround = true;
+            }
+        }
+
+        // Disable controls if in air and not close to ground
+        if (!closeToGround) {
+            input.steering = 0;
+            input.brake = 0;
+            if (input.throttle < 0) input.throttle = 0;
+        }
+
         // console.log("Vehicle Update. Throttle:", input.throttle, "Brake:", input.brake);
 
         const speed = this.controller.currentVehicleSpeed(); // m/s
@@ -204,15 +236,7 @@ export class VehiclePhysics {
         let engineForce = 0;
         let brakeForce = 0;
 
-        // Check if grounded (any wheel touching)
-        let isGrounded = false;
-        const numWheels = this.controller.numWheels();
-        for (let i = 0; i < numWheels; i++) {
-            if (this.controller.wheelIsInContact(i)) {
-                isGrounded = true;
-                break;
-            }
-        }
+        // isGrounded is calculated at start of update
 
         // Jump Measurement Logic (Preserved)
         if (!this.wasGrounded && isGrounded) {

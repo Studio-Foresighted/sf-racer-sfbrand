@@ -78,7 +78,13 @@ export class HUD {
     }
 
     showFinish(onRestart) {
+        if (this.finishOverlay) {
+            document.body.removeChild(this.finishOverlay);
+            this.finishOverlay = null;
+        }
+
         const overlay = document.createElement('div');
+        this.finishOverlay = overlay;
         overlay.style.position = 'absolute';
         overlay.style.top = '50%';
         overlay.style.left = '50%';
@@ -113,7 +119,7 @@ export class HUD {
         btn.style.transition = 'all 0.5s ease 0.3s'; // Delay button
         
         btn.onclick = () => {
-            document.body.removeChild(overlay);
+            this.hideFinish();
             if (onRestart) onRestart();
         };
         
@@ -128,6 +134,15 @@ export class HUD {
             btn.style.opacity = '1';
             btn.style.transform = 'translateY(0)';
         });
+    }
+
+    hideFinish() {
+        if (this.finishOverlay) {
+            if (this.finishOverlay.parentNode) {
+                this.finishOverlay.parentNode.removeChild(this.finishOverlay);
+            }
+            this.finishOverlay = null;
+        }
     }
 
     hide() {

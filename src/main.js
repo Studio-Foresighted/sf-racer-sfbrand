@@ -65,6 +65,7 @@ class Game {
         this.coins = 0;
         
         this.raceStarted = false;
+        this.isRaceFinished = false;
         this.raceTime = 0;
         this.preStartInput = { throttle: 0, steering: 0, brake: 0 };
         this.prevRaceStarted = false;
@@ -93,26 +94,10 @@ class Game {
         // Define onRaceFinished callback
         this.onRaceFinished = () => {
             this.raceStarted = false;
+            this.isRaceFinished = true;
             if (this.hud) {
                 this.hud.showFinish(() => {
-                    // Restart Logic
-                    // 1. Reset Car Position
-                    this.resetCar(true);
-                    // 2. Reset Lap System
-                    if (this.lapSystem) {
-                        const coinModel = this.mapEditor ? this.mapEditor.coinModel : null;
-                        this.lapSystem.updateCheckpoints(this.lapSystem.checkpoints, coinModel); // Reset state with coins
-                    }
-                    // 3. Reset Timer
-                    this.raceTime = 0;
-                    // 4. Reset Points
-                    if (this.hud) {
-                        this.hud.resetCoins();
-                    }
-                    // 5. Show Countdown again
-                    this.hud.showCountdown(() => {
-                        this.raceStarted = true;
-                    });
+                    this.restartRace();
                 });
             }
         };
@@ -194,6 +179,32 @@ class Game {
 
         // 9. Start Loop (Always start loop so we can debug if needed)
         this.renderer.renderer.setAnimationLoop(() => this.update());
+    }
+
+    restartRace() {
+        this.isRaceFinished = false;
+        // 1. Reset Car Position
+        this.resetCar(true);
+        // 2. Reset Lap System
+        if (this.lapSystem) {
+            const coinModel = this.mapEditor ? this.mapEditor.coinModel : null;
+            this.lapSystem.updateCheckpoints(this.lapSystem.checkpoints, coinModel); // Reset state with coins
+        }
+        // 3. Reset Timer
+        this.raceTime = 0;
+        // 4. Reset Points
+        if (this.hud) {
+            this.hud.resetCoins();
+            this.hud.hideFinish();
+        }
+        // 5. Show Countdown again
+        if (this.hud) {
+            this.hud.showCountdown(() => {
+                this.raceStarted = true;
+            });
+        } else {
+            this.raceStarted = true;
+        }
     }
 
     startGimmickLoop() {
@@ -358,40 +369,41 @@ class Game {
             return;
         }
 
+        const isSwap = !!this.vehicle;
+
         this.visual.setModel(model);
         
         // Collapse Garage UI (instead of hiding)
         if (this.garage) this.garage.collapse();
         
-        if (this.hud) {
-            this.hud.show();
-            // Start Countdown when car is ready
-            this.hud.showCountdown(() => {
-                console.log("GO!");
+        if (this.isRaceFinished) {
+            // If race is finished, changing car should trigger restart
+            this.restartRace();
+        } else if (!isSwap) {
+            // Initial Start
+            if (this.hud) {
+                this.hud.show();
+                // Start Countdown when car is ready
+                this.hud.showCountdown(() => {
+                    console.log("GO!");
+                    this.raceStarted = true;
+                    this.raceTime = 0;
+                });
+            } else {
+                // Fallback if HUD is missing (should not happen)
+                console.warn("HUD missing, starting race immediately");
                 this.raceStarted = true;
                 this.raceTime = 0;
-            });
-        } else {
-            // Fallback if HUD is missing (should not happen)
-            console.warn("HUD missing, starting race immediately");
-            this.raceStarted = true;
-            this.raceTime = 0;
-        }
+            }
 
-        // Reset Physics Vehicle if exists, or create new
-        if (this.vehicle) {
-            // Reset Position
-            this.vehicle.chassisBody.setTranslation({ x: 0, y: 2.0, z: 0 }, true);
-            this.vehicle.chassisBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
-            this.vehicle.chassisBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
-            
-            // Face Backward (-Z) - Reverted as requested
-            this.vehicle.chassisBody.setRotation({ x: 0, y: 1, z: 0, w: 0 }, true);
-        } else {
             // Create Physics Vehicle
             this.vehicle = new VehiclePhysics(this.physics, { x: 0, y: 2.0, z: 0 });
             // Face Backward (-Z)
             this.vehicle.chassisBody.setRotation({ x: 0, y: 1, z: 0, w: 0 }, true);
+        } else {
+            // Swap Car - Just pop in
+            // Reset upright at current position (like 'r')
+            this.resetCar(false);
         }
 
         // Connect Jump Callback
