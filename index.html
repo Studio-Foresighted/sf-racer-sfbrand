@@ -247,6 +247,25 @@
             -webkit-tap-highlight-color: transparent;
             z-index: 100;
         }
+        
+        /* Extended Hitbox (Invisible Padding) */
+        .steer-btn::after {
+            content: '';
+            position: absolute;
+            top: -30%;
+            left: -30%;
+            right: -30%;
+            bottom: -30%;
+            border-radius: 50%;
+            z-index: -1; /* Behind the button visual */
+        }
+        
+        /* Debug Hitbox Visibility */
+        .steer-btn.debug-hitbox::after {
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid red;
+        }
+
         .steer-btn:active, .steer-btn.active { 
             transform: scale(0.90); /* Press effect only, rotation handled in ID */
         }

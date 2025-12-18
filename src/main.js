@@ -585,6 +585,12 @@ class Game {
             if (this.lapSystem) {
                 this.lapSystem.toggleStartLineVisibility();
             }
+            
+            // Toggle hitbox debug visibility
+            const leftBtn = document.getElementById('btn-left');
+            const rightBtn = document.getElementById('btn-right');
+            if (leftBtn) leftBtn.classList.toggle('debug-hitbox');
+            if (rightBtn) rightBtn.classList.toggle('debug-hitbox');
         }
     }
 
