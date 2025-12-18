@@ -42,8 +42,13 @@ export class MapEditor {
         this.createCursors();
         this.createNotificationUI();
         
-        // Initialize Maps
-        this.initMaps();
+        // Initialize Maps (Moved to explicit init() call)
+        // this.initMaps();
+    }
+
+    async init() {
+        await this.loadAssets();
+        await this.initMaps();
     }
 
     isLocalhost() {
@@ -98,6 +103,9 @@ export class MapEditor {
     }
 
     showNotification(msg) {
+        // Hide "Loaded: Default Map" notification globally as requested
+        if (msg.includes("Loaded: Default Map")) return;
+
         this.notification.innerText = msg;
         this.notification.style.opacity = 1;
         setTimeout(() => {
@@ -106,29 +114,31 @@ export class MapEditor {
     }
 
     loadAssets() {
-        const loader = new GLTFLoader();
-        loader.load('./assets/models/kr-coin.glb', (gltf) => {
-            this.coinModel = gltf.scene;
-            this.coinModel.scale.set(2, 2, 2);
-            this.tuneCoinMaterials(this.coinModel);
-            
-            // Refresh Editor Visuals
-            if (this.visuals.length > 0) this.refreshVisuals();
+        return new Promise((resolve) => {
+            const loader = new GLTFLoader();
+            loader.load('./assets/models/kr-coin.glb', (gltf) => {
+                this.coinModel = gltf.scene;
+                this.coinModel.scale.set(2, 2, 2);
+                this.tuneCoinMaterials(this.coinModel);
+                
+                // Refresh Editor Visuals
+                if (this.visuals.length > 0) this.refreshVisuals();
 
-            // Update Game Visuals if they were created before the model loaded
-            if (this.game && this.game.lapSystem) {
-                this.game.lapSystem.updateCoinVisuals(this.coinModel);
-            }
-        }, undefined, (error) => {
-            console.error("Error loading Coin Model:", error);
-            const geo = new THREE.CylinderGeometry(1, 1, 0.2, 32);
-            geo.rotateX(Math.PI / 2);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.3 });
-            this.coinModel = new THREE.Mesh(geo, mat);
-            this.coinModel.name = "CoinFallback";
-            
-            // Update Game World with fallback
-            // Removed to prevent double loading
+                // Update Game Visuals if they were created before the model loaded
+                if (this.game && this.game.lapSystem) {
+                    this.game.lapSystem.updateCoinVisuals(this.coinModel);
+                }
+                console.log("Coin Model Loaded");
+                resolve();
+            }, undefined, (error) => {
+                console.error("Error loading Coin Model:", error);
+                const geo = new THREE.CylinderGeometry(1, 1, 0.2, 32);
+                geo.rotateX(Math.PI / 2);
+                const mat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.3 });
+                this.coinModel = new THREE.Mesh(geo, mat);
+                this.coinModel.name = "CoinFallback";
+                resolve();
+            });
         });
     }
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="icon" href="data:,">
     <title>Artworx Kart</title>
     <link rel="manifest" href="./manifest.json">
@@ -14,6 +14,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap" rel="stylesheet">
     <style>
         /* Disable Zoom & Context Menu */
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
         * {
             -webkit-touch-callout: none; /* iOS Safari */
             -webkit-user-select: none; /* Safari */
@@ -382,7 +386,7 @@
             background: rgba(0, 123, 255, 0.5); /* Blue */
             border-bottom-left-radius: 100%;
             cursor: pointer;
-            z-index: 2000;
+            z-index: 4000; /* Higher than pause menu (3000) */
             display: none; /* Hidden on desktop by default, shown via JS if touch */
             pointer-events: auto; /* Re-enable clicks */
             transition: all 0.2s ease;
@@ -704,5 +708,73 @@
     </script>
 
     <script type="module" src="./src/main.js"></script>
+    <!-- Orientation Lock Overlay -->
+    <div id="orientation-overlay" style="
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: #000;
+        color: #f1c40f;
+        z-index: 10000;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        font-family: 'Orbitron', sans-serif;
+        padding: 20px;
+        box-sizing: border-box;
+    ">
+        <div style="font-size: 1.5rem; margin-bottom: 20px; font-weight: bold; letter-spacing: 2px;">LANDSCAPE MODE REQUIRED</div>
+        <div style="font-size: 0.9rem; color: #ccc; margin-bottom: 40px;">Please rotate your device to continue</div>
+        <div class="phone-icon"></div>
+    </div>
+
+    <style>
+        .phone-icon {
+            width: 100px;
+            height: 60px;
+            border: 3px solid #f1c40f;
+            border-radius: 10px;
+            position: relative;
+            animation: rotate-phone 2s ease-in-out infinite;
+        }
+        .phone-icon::after {
+            content: '';
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            background: #f1c40f;
+            border-radius: 50%;
+        }
+        @keyframes rotate-phone {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(-90deg); }
+            75% { transform: rotate(-90deg); }
+            100% { transform: rotate(0deg); }
+        }
+        @media screen and (orientation: portrait) {
+            #orientation-overlay {
+                display: flex !important;
+            }
+        }
+    </style>
+
+    <script>
+        // Attempt to lock orientation on first interaction
+        const lockOrientation = async () => {
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape');
+                }
+            } catch (e) {
+                // Silently fail as many browsers require full-screen for this
+            }
+        };
+        window.addEventListener('touchstart', lockOrientation, { once: true });
+        window.addEventListener('mousedown', lockOrientation, { once: true });
+    </script>
 </body>
 </html>

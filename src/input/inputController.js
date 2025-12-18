@@ -61,6 +61,7 @@ export class InputController {
                 this.leftPressed = false;
                 btnLeft.classList.remove('active');
                 updateSteering();
+                e.preventDefault();
             };
             btnLeft.addEventListener('pointerdown', startLeft);
             btnLeft.addEventListener('pointerup', endLeft);
@@ -79,6 +80,7 @@ export class InputController {
                 this.rightPressed = false;
                 btnRight.classList.remove('active');
                 updateSteering();
+                e.preventDefault();
             };
             btnRight.addEventListener('pointerdown', startRight);
             btnRight.addEventListener('pointerup', endRight);
@@ -101,6 +103,7 @@ export class InputController {
                     this.touchState.throttle = 0;
                     btnGas.classList.remove('active');
                 }
+                e.preventDefault();
             };
             
             btnGas.addEventListener('pointerdown', addGas);
@@ -124,6 +127,7 @@ export class InputController {
                     this.touchState.throttle = 0;
                 }
                 btnBrake.classList.remove('active');
+                e.preventDefault();
             };
             
             btnBrake.addEventListener('pointerdown', addBrake);
@@ -145,6 +149,7 @@ export class InputController {
                 // Simulate ESC key
                 const event = new KeyboardEvent('keydown', { key: 'Escape' });
                 window.dispatchEvent(event);
+                e.preventDefault();
             });
         }
 
@@ -155,10 +160,12 @@ export class InputController {
                     this.touchState.nitro = true;
                     btnNitro.classList.add('active');
                     if (this.onKeyDownCallback) this.onKeyDownCallback('shift'); // Trigger boost logic
+                    e.preventDefault();
                 });
                 const endNitro = (e) => {
                     this.touchState.nitro = false;
                     btnNitro.classList.remove('active');
+                    e.preventDefault();
                 };
                 btnNitro.addEventListener('pointerup', endNitro);
                 btnNitro.addEventListener('pointercancel', endNitro);

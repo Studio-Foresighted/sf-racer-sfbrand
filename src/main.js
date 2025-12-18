@@ -72,7 +72,18 @@ class Game {
         
         this.localCarState = new CarState();
 
-        this.cameraOffset = new THREE.Vector3(0, 5, -10);
+        // Camera Settings
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        this.isCameraGliding = false;
+        
+        // Default Camera Offset (Target)
+        this.targetCameraOffset = this.isMobile 
+            ? new THREE.Vector3(0, 2.66, -5.33) // Mobile: Closer
+            : new THREE.Vector3(0, 5, -10);     // Desktop: Standard
+
+        // Initial Camera Offset (High Angle for Intro)
+        this.cameraOffset = new THREE.Vector3(0, 14.98, -29.97);
+        
         this.cameraLookAtOffset = new THREE.Vector3(0, 0, 5); // Look ahead
         
         this.freeCamera = null;
@@ -140,8 +151,17 @@ class Game {
             this.pauseMenu = new PauseMenu(this);
             this.hud = new HUD(this);
             this.lapSystem = new LapSystem(this);
+            
             this.mapEditor = new MapEditor(this);
+            console.log("Initializing Map Editor (Coins/Ramps)...");
+            await this.mapEditor.init();
+            console.log("Map Editor Initialized");
+
             this.milestones = new MilestoneSystem(this);
+            console.log("Loading Milestones...");
+            await this.milestones.loadMilestones();
+            console.log("Milestones Loaded");
+
             this.freeCamera = new FreeCamera(this.renderer.camera, this.renderer.renderer.domElement);
 
             // Load Banner Texture
@@ -183,6 +203,11 @@ class Game {
 
     restartRace() {
         this.isRaceFinished = false;
+        
+        // Reset Camera for Intro
+        this.cameraOffset.set(0, 14.98, -29.97);
+        this.isCameraGliding = false;
+
         // 1. Reset Car Position
         this.resetCar(true);
         // 2. Reset Lap System
@@ -199,9 +224,13 @@ class Game {
         }
         // 5. Show Countdown again
         if (this.hud) {
-            this.hud.showCountdown(() => {
-                this.raceStarted = true;
-            });
+            // Wait 3.0s before countdown to match initial start
+            setTimeout(() => {
+                this.isCameraGliding = true;
+                this.hud.showCountdown(() => {
+                    this.raceStarted = true;
+                });
+            }, 3000);
         } else {
             this.raceStarted = true;
         }
@@ -383,12 +412,19 @@ class Game {
             // Initial Start
             if (this.hud) {
                 this.hud.show();
-                // Start Countdown when car is ready
-                this.hud.showCountdown(() => {
-                    console.log("GO!");
-                    this.raceStarted = true;
-                    this.raceTime = 0;
-                });
+                
+                // Wait 3.0s for scene to settle before starting countdown
+                setTimeout(() => {
+                    // Trigger Camera Glide
+                    this.isCameraGliding = true;
+
+                    // Start Countdown when car is ready
+                    this.hud.showCountdown(() => {
+                        console.log("GO!");
+                        this.raceStarted = true;
+                        this.raceTime = 0;
+                    });
+                }, 3000);
             } else {
                 // Fallback if HUD is missing (should not happen)
                 console.warn("HUD missing, starting race immediately");
@@ -776,6 +812,23 @@ class Game {
             // 5. Camera Follow
             // Only update camera if Free Cam is NOT active
             if (!this.freeCamera || !this.freeCamera.enabled) {
+                // Camera Zoom Tool (Z/X)
+                if (this.input.keys.z || this.input.keys.x) {
+                    const zoomSpeed = 2.0 * dt;
+                    const dir = this.input.keys.z ? 1 : -1; // Z = In (+), X = Out (-)
+                    
+                    // Adjust Z (Distance)
+                    this.cameraOffset.z += dir * zoomSpeed;
+                    // Adjust Y (Height) - maintain roughly 1:2 ratio (5 height / 10 dist)
+                    this.cameraOffset.y -= dir * zoomSpeed * 0.5;
+
+                    // Limits
+                    if (this.cameraOffset.z > -2) this.cameraOffset.z = -2; // Min dist
+                    if (this.cameraOffset.y < 1) this.cameraOffset.y = 1;   // Min height
+                    
+                    console.log(`CAMERA OFFSET: { x: ${this.cameraOffset.x.toFixed(2)}, y: ${this.cameraOffset.y.toFixed(2)}, z: ${this.cameraOffset.z.toFixed(2)} }`);
+                }
+
                 this.updateCamera(this.localCarState.position, this.localCarState.physicsRotation, dt);
             }
         }
@@ -807,11 +860,21 @@ class Game {
         // Simple Chase Camera
         // Calculate desired position based on car's backward vector
         const carQuat = carRot.clone();
+        
+        // Intro Animation: Smoothly transition cameraOffset to targetCameraOffset
+        // Triggered when countdown starts (isCameraGliding = true)
+        if (this.isCameraGliding) {
+            this.cameraOffset.lerp(this.targetCameraOffset, 2.0 * dt);
+        }
+
         const offset = this.cameraOffset.clone().applyQuaternion(carQuat);
         const desiredPos = carPos.clone().add(offset);
         
         // Smoothly interpolate camera position
-        this.renderer.camera.position.lerp(desiredPos, 5.0 * dt);
+        // Mobile: Stiffer spring (10.0) to reduce "pulling away" effect
+        // Desktop: Standard smooth (5.0)
+        const lerpFactor = this.isMobile ? 10.0 : 5.0;
+        this.renderer.camera.position.lerp(desiredPos, lerpFactor * dt);
         
         // Look at car (plus a bit ahead)
         const lookTarget = carPos.clone().add(this.cameraLookAtOffset.clone().applyQuaternion(carQuat));

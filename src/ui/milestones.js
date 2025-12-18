@@ -13,7 +13,7 @@ export class MilestoneSystem {
         this.closeBtn = document.getElementById('milestone-close');
         
         this.setupEvents();
-        this.loadMilestones();
+        // this.loadMilestones(); // Called explicitly in main.js to prevent lag
     }
 
     async loadMilestones() {
