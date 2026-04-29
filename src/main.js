@@ -167,7 +167,7 @@ class Game {
             // Load Banner Texture
             const texLoader = new THREE.TextureLoader();
             this.bannerTexture = await new Promise(resolve => {
-                texLoader.load('./assets/ui/artworx-kart-banner.png', (tex) => {
+                texLoader.load('./assets/ui/sf-racer-banner.png', (tex) => {
                     tex.colorSpace = THREE.SRGBColorSpace;
                     resolve(tex);
                 }, undefined, () => resolve(null));
